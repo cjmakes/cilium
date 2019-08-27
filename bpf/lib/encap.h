@@ -72,6 +72,7 @@ encap_remap_v6_host_address(struct __sk_buff *skb, const bool egress)
 	union v6addr host_ip;
 	void *data, *data_end;
 	struct ipv6hdr *ip6;
+	union v6addr *which;
 	__u8 nexthdr;
 	__u16 proto;
 	__be32 sum;
@@ -88,11 +89,14 @@ encap_remap_v6_host_address(struct __sk_buff *skb, const bool egress)
 	 * as otherwise replies are not routed via tunnel but public
 	 * address instead.
 	 */
-	if (egress)
+	if (egress) {
 		BPF_V6(host_ip, HOST_IP);
-	else
+		which = (union v6addr *)&ip6->saddr;
+	} else {
 		BPF_V6(host_ip, ROUTER_IP);
-	if (ipv6_addrcmp((union v6addr *)&ip6->saddr, &host_ip))
+		which = (union v6addr *)&ip6->daddr;
+	}
+	if (ipv6_addrcmp(which, &host_ip))
 		return 0;
 	nexthdr = ip6->nexthdr;
 	ret = ipv6_hdrlen(skb, ETH_HLEN, &nexthdr);
